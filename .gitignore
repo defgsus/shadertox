@@ -1,0 +1,43 @@
+db.sqlite3*
+wipe_db.sh
+
+
+# libreoffice
+.~lock*.o*
+
+# Python & VirtualEnv
+/env/
+/venv/
+*.py[cod]
+
+# IntelliJ IDEA Project
+/.idea/
+
+# Node modules
+/node_modules/
+
+#sass project files
+.sass-cache/
+
+db.sqlite3*
+/media
+
+# System Junk
+*.so
+*~
+*.swp
+*.swo
+*.diff
+*.err
+*.orig
+*.log
+*.rej
+*.vi
+.DS_Store
+Thumbs.db
+.cache
+.project
+.settings
+_notes
+dwsync.xml
+*.iml

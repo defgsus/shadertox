@@ -1,0 +1,12 @@
+{% extends 'shaders/base.html' %}
+
+
+{% block content %}
+
+{% for shader in shaders %}
+
+    <p><a href="{% url 'shaders:shader_edit' shader.shader_id %}">{{ shader.name }}</a></p>
+
+{% endfor %}
+
+{% endblock %}
