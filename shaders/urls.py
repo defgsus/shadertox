@@ -7,7 +7,7 @@ from . import views
 
 app_name = "shaders"
 urlpatterns = [
-    url(r'^list/?$',                            views.shader_list_view,         name='shader_list'),
+    url(r'^/?$',                                 views.shader_list_view,         name='shader_list'),
     url(r'^edit/(?P<sid>[A-Z0-9]+)/?$',         views.shader_edit_view,         name='shader_edit'),
     url(r'^fork/(?P<sid>[A-Z0-9]+)/?$',         views.shader_fork_view,         name='shader_fork'),
 

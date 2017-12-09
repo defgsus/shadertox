@@ -3,10 +3,10 @@
 
 {% block content %}
 
+<ul>
 {% for shader in shaders %}
-
-    <p><a href="{% url 'shaders:shader_edit' shader.shader_id %}">{{ shader.name }}</a></p>
-
+    <li><a href="{% url 'shaders:shader_edit' shader.shader_id %}">{{ shader.name }}</a></li>
 {% endfor %}
+</ul>
 
 {% endblock %}

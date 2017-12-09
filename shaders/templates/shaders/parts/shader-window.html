@@ -34,6 +34,10 @@
                 | {{ num_forks }} {% trans 'forks' %}
             {% endif %}
         </span>
+
+        <span class="small-font inline">
+            | {{ num_views }} {% trans 'views' %}
+        </span>
     </div>
 
     <div id="shader-description" contenteditable="true">{{ shader.description|safe }}</div>

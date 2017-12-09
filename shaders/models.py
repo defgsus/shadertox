@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import random
 
+from django.utils import timezone
 from django.db import models, OperationalError
 from django.utils.translation import ugettext_lazy as _
 from django.urls import reverse
@@ -71,4 +72,8 @@ class ShaderSource(models.Model):
     name = models.CharField(verbose_name=_("name"), max_length=100)
     source = models.TextField(verbose_name=_("source"))
 
+
+class ShaderView(models.Model):
+    shader = models.ForeignKey(verbose_name=_("shader"), to="Shader", on_delete=models.PROTECT)
+    date = models.DateTimeField(verbose_name=_("date"), default=timezone.now)
 
