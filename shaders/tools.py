@@ -14,6 +14,7 @@ from .models import *
 JSON_LAYOUT = {
     "id": "10 alphanums",
     "name": "freely chooseable",
+    "forks": ["10 alphanums",],
     "stages": [
         {
             "id": "10 alphanums",
@@ -62,7 +63,8 @@ void main() {
 
 def fork_shader(shader):
     new_shader = Shader.objects.create(
-        name=shader.name,
+        name=_("fork of %s") % shader.name,
+        description=shader.description,
         forked_from=shader
     )
 
@@ -91,11 +93,13 @@ def shader_to_json(shader):
     dic = {
         "id": shader.shader_id,
         "name": shader.name,
+        "description": shader.description,
         "urls": {
             "save": reverse("shaders:shader_save", args=(shader.shader_id,)),
         },
         "sources": [],
         "stages": [],
+        "forks": [t[0] for t in Shader.objects.filter(forked_from=shader).values_list("shader_id")],
     }
 
     for stage in ShaderStage.objects.filter(shader=shader):
@@ -144,7 +148,8 @@ def json_to_shader(data, shader):
     with transaction.atomic():
         _update_model(
             shader,
-            name = data["name"]
+            name=data["name"],
+            description=data["description"],
         )
 
         existing_stages = {stage.stage_id: stage

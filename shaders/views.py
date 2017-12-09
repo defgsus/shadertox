@@ -26,9 +26,14 @@ def shader_edit_view(request, sid):
     except (Shader.DoesNotExist, ValueError):
         raise Http404
 
+    fork_ids = [t[0] for t in Shader.objects.filter(forked_from=shader).values_list("shader_id")]
     ctx = {
         "shader": shader,
+        "can_edit": True,
+        "fork_ids": fork_ids,
+        "num_forks": len(fork_ids),
     }
+
     return render(request, "shaders/shader-edit.html", ctx)
 
 

@@ -37,6 +37,7 @@ class Shader(models.Model):
 
     shader_id = models.CharField(verbose_name=_("shader id"), max_length=10, default=get_new_shader_id)
     name = models.CharField(verbose_name=_("name"), max_length=100)
+    description = models.TextField(verbose_name=_("description"), default="")
 
     forked_from = models.ForeignKey(verbose_name=_("forked from"), to="Shader", on_delete=models.PROTECT,
                                     null=True)

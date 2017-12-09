@@ -17,11 +17,6 @@
     </tr>
 </table>
 
-<form method="POST" action="{% url 'shaders:shader_fork' shader.shader_id %}">
-    <input type="submit" value="{% trans 'fork' %}">
-    {% csrf_token %}
-</form>
-
 <script>
     var ctx, editor;
 
@@ -42,6 +37,25 @@
         // RENDER WINDOW HOOKS
         $('#play-button').on("click", function() {
             ctx.togglePlaying();
+        });
+
+        // SHADER INFO EDIT HOOKS
+
+        // Ricardo Azzi Silva: https://stackoverflow.com/questions/32522953/remove-focus-from-a-content-editable-div
+        $(document).on('mousedown', '[contenteditable]', function(e){
+            $(this).attr('contenteditable', true);
+            $(this).focus();
+        });
+        $(document).on('blur', '[contenteditable]', function(e){
+            $(this).attr('contenteditable', false);
+        });
+
+        $('#shader-name').on("keydown", function(e) {
+            if (e.originalEvent.code == "Enter") {
+                e.preventDefault();
+                $(e).attr('contenteditable', false);
+                window.getSelection().removeAllRanges();
+            }
         });
 
         // GLOBAL KEYS

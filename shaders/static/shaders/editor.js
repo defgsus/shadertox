@@ -57,6 +57,9 @@ function getEditorFromJson(data, ctx) {
                 break;
             }
         }
+
+        ed.data.name = $("#shader-name").text();
+        ed.data.description = $("#shader-description").html();
     };
 
     ed.compile = function() {

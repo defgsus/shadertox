@@ -7,6 +7,7 @@ body {
 }
 
 .small-font { font-size: 0.7em; }
+.inline { display: inline; }
 
 #main-container {
     position: absolute;
@@ -23,6 +24,9 @@ body {
     border-radius: 5px;
     cursor: pointer;
     padding: 2px 10px;
+    border-width: 1.5px;
+    border-style: outset;
+    border-color: #d8d8d8;
 }
 
 .button:hover {
@@ -49,11 +53,26 @@ body {
     text-align: center;
 }
 
+.shader-name {
+    font-size: 1.4em;
+    font-weight: bold;
+    margin: 5px 0px;
+}
+
+#shader-description {
+    background: #d4d4d4;
+    border-radius: 6px;
+    padding: 4px;
+    margin-top: 7px;
+    font-size: 0.9em;
+}
+
 #play-button {
     width: 18px;
-    height: 21px;
+    height: 20px;
     text-align: center;
 }
+
 
 
 /* CODE EDITOR */
@@ -96,6 +115,10 @@ body {
 
 #code-editor {
     background: #888;
+}
+
+#code-editor-tools {
+    margin: 2px;
 }
 
 .code-line-error {
