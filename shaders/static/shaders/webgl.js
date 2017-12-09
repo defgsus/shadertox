@@ -7,6 +7,8 @@ function getGlContext(canvas) {
     }
     ctx = {
         canvas: canvas,
+        texSlots: [null, null, null, null],
+        imgSlots: [null, null, null, null],
         playing: false,
         playTime: 0,
         playStartTime: 0,
@@ -182,8 +184,33 @@ function getGlContext(canvas) {
             ctx.lastFrameTime = time;
 		}
     };
+    
+        
+    ctx.loadTexture = function(slot_num, url, doInterpol)
+    {
+        ctx.texSlots[slot_num] = ctx.gl.createTexture();
+        ctx.imgSlots[slot_num] = new Image();
+        ctx.imgSlots[slot_num].onload = function() {
+            ctx.handleTextureLoaded(slot_num, doInterpol);
+        }
+        ctx.imgSlots[slot_num].src = url;
+        return ctx.texSlots[slot_num];
+    }
+    
+    ctx.handleTextureLoaded = function(slot_num, doInterp)
+    {
+        ctx.gl.bindTexture(ctx.gl.TEXTURE_2D, ctx.texSlots[slot_num]);
+        ctx.gl.texImage2D(ctx.gl.TEXTURE_2D, 0, ctx.gl.RGBA, ctx.gl.RGBA, ctx.gl.UNSIGNED_BYTE, ctx.imgSlots[slot_num]);
+        ctx.gl.texParameteri(ctx.gl.TEXTURE_2D, ctx.gl.TEXTURE_MAG_FILTER, doInterp ? ctx.gl.LINEAR : ctx.gl.NEAREST);
+        ctx.gl.texParameteri(ctx.gl.TEXTURE_2D, ctx.gl.TEXTURE_MIN_FILTER, doInterp ? ctx.gl.LINEAR_MIPMAP_LINEAR : ctx.gl.NEAREST);
+        if (doInterp) {
+            ctx.gl.generateMipmap(ctx.gl.TEXTURE_2D);
+        }
+        ctx.log("texture slot " + slot_num + " loaded");
+        //ctx.gl.bindTexture(ctx.gl.TEXTURE_2D, null);
+    }
 
-    ctx.getPixels() {
+    ctx.getPixels = function() {
         var pixels = new Uint8Array(ctx.gl.viewportWidth * ctx.gl.viewportHeight * 4);
         ctx.gl.readPixels(0, 0, ctx.gl.viewportWidth, ctx.gl.viewportHeight,
                           ctx.gl.RGBA, ctx.gl.UNSIGNED_BYTE, pixels);
@@ -205,36 +232,11 @@ window.requestAnimFrame = (function() {
          window.mozRequestAnimationFrame ||
          window.oRequestAnimationFrame ||
          window.msRequestAnimationFrame ||
-         function(/* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
-           window.setTimeout(callback, 1000/60);
+         function(callback, element) {
+             window.setTimeout(callback, 1000/60);
          };
 })();
 
 
-
-
-
-// just copy/pasted, NOT INTEGRATED YET
-
-function loadTexture(url, doInterpol)
-{
-	var tex = gl.createTexture();
-	var img = new Image();
-	img.onload = function() { handleTextureLoaded(img, tex, doInterpol); }
-	img.src = url;
-	return tex;
-}
-
-function handleTextureLoaded(image, texture, doInterp) 
-{
-	gl.bindTexture(gl.TEXTURE_2D, texture);
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, doInterp ? gl.LINEAR : gl.NEAREST);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, doInterp ? gl.LINEAR_MIPMAP_LINEAR : gl.NEAREST);
-	if (doInterp) {
-		gl.generateMipmap(gl.TEXTURE_2D);
-	}
-	gl.bindTexture(gl.TEXTURE_2D, null);
-}
 
 

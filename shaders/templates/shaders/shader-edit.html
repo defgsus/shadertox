@@ -1,5 +1,5 @@
 {% extends 'shaders/base.html' %}
-{% load i18n %}
+{% load static i18n %}
 
 {% block content %}
 
@@ -29,7 +29,7 @@
             }
 
             ctx = getGlContext("#canvas-" + data.id);
-
+            ctx.loadTexture(0, "{% static 'shaders/img/bob.png' %}", true);
             editor = getEditorFromJson(data, ctx);
             editor.compile();
         });
