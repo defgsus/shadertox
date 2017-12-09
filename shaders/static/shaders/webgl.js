@@ -6,6 +6,11 @@ function getGlContext(canvas) {
         canvas = $(canvas).get()[0];
     }
     ctx = {
+        playing: false,
+        playTime: 0,
+        playStartTime: 0,
+        framesPerSecond: 0,
+        lastFrameTime: 0,
         log: function(x) { if (ctx.edit) ctx.edit.log(x); console.log(x); },
         error: function(x) { if (ctx.edit) ctx.edit.error(x); console.log("ERROR:", x); }
     };
@@ -71,6 +76,9 @@ function getGlContext(canvas) {
 
     ctx.initShader = function(vertexSource, fragmentSource)
     {
+        ctx.playing = false;
+        ctx.updateRenderInfo();
+
         // compile and link
         ctx.vertexShader = ctx.compileShader(ctx.gl.VERTEX_SHADER, vertexSource);
         if (!ctx.vertexShader)
@@ -119,8 +127,7 @@ function getGlContext(canvas) {
 		ctx.gl.useProgram(ctx.shaderProgram);
 		
 		// send uniforms
-		var time = (Date.now()/1000.-1512773324.);
-		ctx.gl.uniform1f(ctx.u_time, time);
+		ctx.gl.uniform1f(ctx.u_time, ctx.playTime);
 		ctx.gl.uniform2f(ctx.u_resolution, ctx.gl.viewportWidth, ctx.gl.viewportHeight);
 
 		// draw
@@ -148,15 +155,40 @@ function getGlContext(canvas) {
         ctx.initShader(vertex_sources[0].source, full_frag);
 	}
 
+	ctx.stop = function() { ctx.playing = false; ctx.updateRenderInfo(); }
+	ctx.play = function() { ctx.playing = true; ctx.playStartTime = Date.now(); ctx.updateRenderInfo(); ctx.tick(); }
+
+	ctx.togglePlaying = function() {
+	    if (ctx.playing) ctx.stop(); else ctx.play();
+	}
+
+	ctx.updateRenderInfo = function() {
+	    $("#play-button").text(ctx.playing ? '#' : '▶');
+	    $("#play-time").text(ctx.playTime.toFixed(2));
+	    $("#frames-per-second").text(ctx.framesPerSecond.toFixed());
+	    if (ctx.playing) {
+	        setTimeout(ctx.updateRenderInfo, 100);
+	    }
+	}
+
+    ctx.tick = function() {
+        if (ctx.playing) {
+    		window.requestAnimFrame(ctx.tick);
+	    	var time = Date.now();
+            ctx.playTime = (time - ctx.playStartTime) / 1000.;
+		    ctx.render();
+            ctx.framesPerSecond = 1000. / Math.max(0.1, time - ctx.lastFrameTime);
+            ctx.lastFrameTime = time;
+		}
+    };
+
     return ctx;
 };
 
 
-
-
-
 /**
  * Provides requestAnimationFrame in a cross browser way.
+ * https://gist.github.com/mrdoob/838785
  */
 window.requestAnimFrame = (function() {
   return window.requestAnimationFrame ||
@@ -169,6 +201,11 @@ window.requestAnimFrame = (function() {
          };
 })();
 
+
+
+
+
+// just copy/pasted, NOT INTEGRATED YET
 
 function loadTexture(url, doInterpol)
 {

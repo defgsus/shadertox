@@ -1,0 +1,19 @@
+{% load i18n %}
+
+<div class="shader-container">
+
+    {% include './shader-canvas.html' %}
+    <div>
+        <div class="button" id="play-button"></div>
+        <div class="render-number"><span id="play-time"></span><span class="small-font">s</span></div>
+        <div class="render-number"><span id="frames-per-second"></span><span class="small-font">fps</span></div>
+    </div>
+
+    <h2>"{{ shader.name }}"</h2>
+    {% if shader.forked_from %}
+    <p>{% trans 'forked from' %}
+        "<a href="{% url 'shaders:shader_edit' shader.forked_from.shader_id %}">{{ shader.forked_from.name }}</a>"
+    </p>
+    {% endif %}
+
+</div>

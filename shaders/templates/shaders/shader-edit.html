@@ -8,15 +8,7 @@
 <table>
     <tr>
         <td valign="top">
-            <canvas width="320" height="200" id="test-canvas"></canvas>
-
-            <h2>"{{ shader.name }}"</h2>
-            {% if shader.forked_from %}
-            <p>{% trans 'forked from' %}
-                "<a href="{% url 'shaders:shader_edit' shader.forked_from.shader_id %}">{{ shader.forked_from.name }}</a>"
-            </p>
-            {% endif %}
-
+            {% include './parts/shader-window.html' %}
         </td>
 
         <td valign="top">
@@ -35,12 +27,21 @@
 
     $(function() {
 
-        ctx = getGlContext("#test-canvas");
-
         $.ajax("{% url 'shaders:shader_load' shader.shader_id %}").done(function(data) {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            ctx = getGlContext("#canvas-" + data.id);
 
             editor = getEditorFromJson(data, ctx);
             editor.compile();
+        });
+
+        // RENDER WINDOW HOOKS
+        $('#play-button').on("click", function() {
+            ctx.togglePlaying();
         });
 
         // GLOBAL KEYS

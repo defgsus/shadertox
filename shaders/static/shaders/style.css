@@ -6,6 +6,8 @@ body {
     font-family: Ubuntu, Arial;
 }
 
+.small-font { font-size: 0.7em; }
+
 #main-container {
     position: absolute;
     width: 100%;
@@ -20,23 +22,52 @@ body {
     background: linear-gradient(#ddd,#999);
     border-radius: 5px;
     cursor: pointer;
-    padding: 2px;
+    padding: 2px 10px;
 }
 
 .button:hover {
     background: linear-gradient(#eee,#aaa);;
 }
 
+.button:active {
+    background: linear-gradient(#bbb,#ccc);;
+}
+
+
+/* RENDER WINDOW */
+
+.shader-container {
+    position: relative;
+    margin-top: 12px;
+    padding: 10px;
+}
+
+.render-number {
+    display: inline-block;
+    margin-left: 10px;
+    width: 20%;
+    text-align: center;
+}
+
+#play-button {
+    width: 18px;
+    height: 21px;
+    text-align: center;
+}
+
+
+/* CODE EDITOR */
 
 #code-editor-container {
     position: relative;
-    background: #fff;
+    background: #c7c7c7;
     border-radius: 5px;
 }
 
 #code-editor-tab-header {
     background: #eee;
     padding: 0px;
+    font-size: 0.8em;
 }
 
 .code-editor-tab {
@@ -50,7 +81,7 @@ body {
 }
 
 .code-editor-tab-active {
-    background: #a2f198;
+    background: linear-gradient(#fff,#ddd);
     color: black;
     cursor: auto;
 }
@@ -58,10 +89,14 @@ body {
 .code-editor-tab:hover { background: #f8f8f8; }
 .code-editor-tab-active:hover { background: #a2f198; }
 
+#code-editor-header {
+    font-size: 0.8em;
+    margin: 2px;
+}
+
 #code-editor {
     background: #888;
 }
-
 
 .code-line-error {
     background: #844;
