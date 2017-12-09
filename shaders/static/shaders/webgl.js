@@ -6,6 +6,7 @@ function getGlContext(canvas) {
         canvas = $(canvas).get()[0];
     }
     ctx = {
+        canvas: canvas,
         playing: false,
         playTime: 0,
         playStartTime: 0,
@@ -181,6 +182,14 @@ function getGlContext(canvas) {
             ctx.lastFrameTime = time;
 		}
     };
+
+    ctx.getPixels() {
+        var pixels = new Uint8Array(ctx.gl.viewportWidth * ctx.gl.viewportHeight * 4);
+        ctx.gl.readPixels(0, 0, ctx.gl.viewportWidth, ctx.gl.viewportHeight,
+                          ctx.gl.RGBA, ctx.gl.UNSIGNED_BYTE, pixels);
+        console.log(pixels);
+        return pixels;
+    }
 
     return ctx;
 };
