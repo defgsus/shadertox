@@ -43,12 +43,27 @@
             editor.compile();
         });
 
+        // GLOBAL KEYS
         $("body").on("keydown", function(e) {
-            var o = e.originalEvent;
-            if (o.code == "Enter" && o.altKey) {
+
+            var key = undefined;
+            // Alan Bellows: https://stackoverflow.com/questions/93695/best-cross-browser-method-to-capture-ctrls-with-jquery
+            var possible = [ e.key, e.keyIdentifier, e.keyCode, e.which ];
+            while (key === undefined && possible.length > 0)
+                key = possible.pop();
+            //console.log(key);
+            if (!key)
+                return;
+
+            if ((key == '115' || key == '83' ) && (e.ctrlKey || e.metaKey) && !(e.altKey)) {
+                e.preventDefault();
+                editor.save();
+            }
+            if (key == '13' && e.altKey) {
                 e.preventDefault();
                 editor.compile();
             }
+
         });
     });
 </script>
