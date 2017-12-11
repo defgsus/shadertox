@@ -3,11 +3,14 @@
 function getEditorFromJson(data, ctx) {
     var html = "";
 
-    var _log = function(x) {
+    var _log = function(x, err) {
         var text = x;
         if (typeof(x) != "string")
             text = JSON.stringify(x);
-        $("#code-editor-log").append("<p>"+text+"</p>");
+        if (!err)
+            $("#code-editor-log").append("<p>"+text+"</p>");
+        else
+            $("#code-editor-log").append('<p class="error">'+text+"</p>");
     }
 
     var ed = {
@@ -15,8 +18,8 @@ function getEditorFromJson(data, ctx) {
         data: data,
         currentSourceId: null,
         lineWidgets: [],
-        log: function(x) { _log(x); },
-        error: function(x) { _log(x); }
+        log: function(x) { _log(x, false); },
+        error: function(x) { _log(x, true); }
     }
     ctx.edit = ed;
 

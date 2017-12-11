@@ -17,6 +17,11 @@ body {
     background: linear-gradient(#f3f3f3,#adadad);
 }
 
+.error {
+    background: #a54a4a;
+    color: white;
+    padding: 2px;
+}
 
 .button {
     display: inline-block;

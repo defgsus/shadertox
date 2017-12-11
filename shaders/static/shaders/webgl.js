@@ -40,12 +40,41 @@ function getGlContext(canvas) {
     ctx.gl.viewport(0, 0, ctx.gl.viewportWidth, ctx.gl.viewportHeight);
     ctx.gl.clear(ctx.gl.COLOR_BUFFER_BIT | ctx.gl.DEPTH_BUFFER_BIT);
 
-    function getInclude(source, source_name, include) {
+    function isIncluded(source_name, inc_name) {
+        //console.log(ctx.resolvedNames);
+        for (var i in ctx.resolvedNames) {
+            if (i == source_name) {
+                if (inc_name in ctx.resolvedNames[i])
+                    return true;
+                for (var j in ctx.resolvedNames[i]) {
+                    console.log(source_name, ctx.resolvedNames[i][j]);
+
+                    if (isIncluded(ctx.resolvedNames[i][j], inc_name))
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function getInclude(source, source_name, include, org_source) {
         console.log("INC", source_name, include.name);
         if (source_name == include.name) {
             ctx.error("self include '" + source_name + "'");
             return null;
         }
+        if (!(org_source in ctx.resolvedNames)) {
+            ctx.resolvedNames[org_source] = {};
+            ctx.resolvedNames[org_source][include.name] = 1;
+        }
+        else {
+            if (include.name in ctx.resolvedNames[org_source]) {
+                ctx.error("circular reference: '" + source_name + "' includes '" + include.name + "'");
+                return null;
+            }
+            ctx.resolvedNames[org_source][include.name] = 1;
+        }
+
         var isources = ctx.edit.data.sources.filter(function(s) { return s.name == include.name; });
         if (isources.length == 0) {
             ctx.error("include '" + include.name + "' not found");
@@ -54,14 +83,7 @@ function getGlContext(canvas) {
             ctx.error("ambigious include '" + include.name + "'");
             return null;
         }
-        if (!(source_name in ctx.resolvedNames))
-            ctx.resolvedNames[source_name] = [include.name];
-        /*else if (sour)
-            ctx.error("circular include '" + isources[0].name + "'");
-            return null;
-        }
-        resolvedNames[isources[0].name] = 1;
-        */
+
         var isource = '/* include "' + isources[0].name + '" */\n'
                     + isources[0].source
                     + '/* end include "' + isources[0].name + '" */\n';
@@ -75,11 +97,11 @@ function getGlContext(canvas) {
             var subincludes = Tools.getIncludes(source);
             if (subincludes.length == 0)
                 break;
-            var subinclude = subincludes[0];
-            source = getInclude(source, include.name, subinclude);
+            source = getInclude(source, include.name, subincludes[0], org_source);
             if (!source)
                 return null;
         }
+
         return source;
     }
 
@@ -89,10 +111,11 @@ function getGlContext(canvas) {
         ctx.resolvedNames = {};
         while (true) {
             var includes = Tools.getIncludes(source);
-            if (includes.length == 0)
-                break;
-            source = getInclude(source, "main", includes[0]);
-        };
+            if (includes.length)
+                source = getInclude(source, "main", includes[0], "main")
+            else
+                break
+        }
         $("#debug").text(source);
         return source;
     }
