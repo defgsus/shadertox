@@ -76,4 +76,6 @@ class ShaderSource(models.Model):
 class ShaderView(models.Model):
     shader = models.ForeignKey(verbose_name=_("shader"), to="Shader", on_delete=models.PROTECT)
     date = models.DateTimeField(verbose_name=_("date"), default=timezone.now)
+    session_key = models.CharField(verbose_name=_("session key"), max_length=40, default="")
+
 

@@ -52,6 +52,10 @@ DEFAULT_FRAGMEMT_PRE = """
 precision mediump float;
 uniform vec2 iResolution;
 uniform float iTime;
+uniform sampler2D iChannel0;
+uniform sampler2D iChannel1;
+uniform sampler2D iChannel2;
+uniform sampler2D iChannel3;
 varying vec2 _shadertox_n_pos;
 varying vec2 _shadertox_s_pos;
 void mainImage(out vec4 fragColor, in vec2 fragCoord);

@@ -34,7 +34,10 @@ def shader_edit_view(request, sid):
         "num_views": ShaderView.objects.filter(shader=shader).count(),
     }
 
-    ShaderView.objects.create(shader=shader)
+
+    if not request.session.session_key:
+        request.session.create()
+    ShaderView.objects.get_or_create(shader=shader, session_key=request.session.session_key)
 
     return render(request, "shaders/shader-edit.html", ctx)
 

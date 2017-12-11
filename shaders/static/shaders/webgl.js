@@ -8,7 +8,7 @@ function getGlContext(canvas) {
     ctx = {
         canvas: canvas,
         texSlots: [null, null, null, null],
-        imgSlots: [null, null, null, null],
+        tickId: 0,
         playing: false,
         playTime: 0,
         playStartTime: 0,
@@ -79,9 +79,6 @@ function getGlContext(canvas) {
 
     ctx.initShader = function(vertexSource, fragmentSource)
     {
-        ctx.playing = false;
-        ctx.updateRenderInfo();
-
         // compile and link
         ctx.vertexShader = ctx.compileShader(ctx.gl.VERTEX_SHADER, vertexSource);
         if (!ctx.vertexShader)
@@ -96,9 +93,9 @@ function getGlContext(canvas) {
         ctx.gl.linkProgram(ctx.shaderProgram);
     
         // check for success
-        if (!ctx.gl.getProgramParameter(ctx.shaderProgram, ctx.gl.LINK_STATUS)) 
-        {
-            alert("Could not initialize shaders");
+        if (!ctx.gl.getProgramParameter(ctx.shaderProgram, ctx.gl.LINK_STATUS)) {
+            ctx.error("Could not initialize shaders");
+            return;
         }
     
         // bind shader
@@ -114,6 +111,15 @@ function getGlContext(canvas) {
         ctx.u_time = ctx.gl.getUniformLocation(ctx.shaderProgram, "iTime");
         ctx.u_resolution = ctx.gl.getUniformLocation(ctx.shaderProgram, "iResolution");
 
+        // bind texture slots
+        for (var i=0; i<4; ++i) {
+            var utex = ctx.gl.getUniformLocation(ctx.shaderProgram, "iChannel"+i);
+            if (utex >= 0)
+                ctx.gl.uniform1i(utex, i);
+            ctx["u_texture"+i] = utex;
+        }
+
+        // "two triangles to render worlds"
         ctx.createVertexBuffer(
             [-1,-1,0, 1,-1,0, 1,1,0, -1,1,0],
             [0,1,2, 0,2,3]
@@ -133,11 +139,23 @@ function getGlContext(canvas) {
 		ctx.gl.uniform1f(ctx.u_time, ctx.playTime);
 		ctx.gl.uniform2f(ctx.u_resolution, ctx.gl.viewportWidth, ctx.gl.viewportHeight);
 
+		// bind textures
+		for (var i=0; i<4; ++i) {
+		    if (ctx.texSlots[i] && ctx.texSlots[i].ready) {
+		        ctx.gl.activeTexture(ctx.gl.TEXTURE0 + i);
+		        ctx.gl.bindTexture(ctx.gl.TEXTURE_2D, ctx.texSlots[i].tex);
+		    }
+		}
+
 		// draw
 		ctx.gl.drawElements(ctx.gl.TRIANGLES, ctx.vb_index.numItems, ctx.gl.UNSIGNED_SHORT, 0);
 	}
 
 	ctx.initFromJson = function(data) {
+	    var prev_playing = ctx.playing;
+	    if (ctx.playing)
+            ctx.stop();
+
 	    var stage = data.stages[0];
 
 	    var vertex_sources = data.sources.filter(function(e) { return e.type=="vertex" && e.stage==stage.index});
@@ -156,13 +174,35 @@ function getGlContext(canvas) {
             stage.fragment_pre += "\n";
 	    var full_frag = stage.fragment_pre + frag_sources[0].source
         ctx.initShader(vertex_sources[0].source, full_frag);
+
+        if (prev_playing)
+            ctx.play();
+        else
+            ctx.updateRenderInfo();
 	}
 
-	ctx.stop = function() { ctx.playing = false; ctx.updateRenderInfo(); }
-	ctx.play = function() { ctx.playing = true; ctx.playStartTime = Date.now(); ctx.updateRenderInfo(); ctx.tick(); }
-
+	ctx.stop = function(do_wait) {
+	    if (!ctx.playing)
+	        ctx.setPlayTime(0.);
+	    ctx.playing = false;
+	    ctx.updateRenderInfo();
+	}
+	ctx.play = function() {
+	    ctx.playing = true;
+	    ctx.setPlayTime(ctx.playTime);
+	    ctx.updateRenderInfo();
+	    ctx.tickId += 1;
+	    ctx.tick(ctx.tickId);
+	}
 	ctx.togglePlaying = function() {
 	    if (ctx.playing) ctx.stop(); else ctx.play();
+	}
+	ctx.setPlayTime = function(time) {
+	    var now = Date.now();
+	    ctx.playStartTime = now - time * 1000.;
+	    ctx.playTime = time;
+	    if (!ctx.playing)
+	        ctx.updateRenderInfo();
 	}
 
 	ctx.updateRenderInfo = function() {
@@ -174,40 +214,51 @@ function getGlContext(canvas) {
 	    }
 	}
 
-    ctx.tick = function() {
-        if (ctx.playing) {
-    		window.requestAnimFrame(ctx.tick);
+    ctx.tick = function(tickId) {
+        /* tickId helps avoid having multiple parallel requestAnimFrames */
+        if (ctx.playing && tickId == ctx.tickId) {
+    		window.requestAnimFrame(function() { ctx.tick(tickId); });
 	    	var time = Date.now();
             ctx.playTime = (time - ctx.playStartTime) / 1000.;
 		    ctx.render();
-            ctx.framesPerSecond = 1000. / Math.max(0.1, time - ctx.lastFrameTime);
+            ctx.framesPerSecond = 1000. / Math.max(1., time - ctx.lastFrameTime);
             ctx.lastFrameTime = time;
 		}
     };
-    
-        
+
     ctx.loadTexture = function(slot_num, url, doInterpol)
     {
-        ctx.texSlots[slot_num] = ctx.gl.createTexture();
-        ctx.imgSlots[slot_num] = new Image();
-        ctx.imgSlots[slot_num].onload = function() {
-            ctx.handleTextureLoaded(slot_num, doInterpol);
+        var slot = {
+            tex: ctx.gl.createTexture(),
+            image: new Image(),
+            ready: false,
+            doInterpol: doInterpol,
         }
-        ctx.imgSlots[slot_num].src = url;
-        return ctx.texSlots[slot_num];
+        slot.image.onload = function() {
+            ctx.handleTextureLoaded(slot_num);
+        }
+        slot.image.src = url;
+        ctx.texSlots[slot_num] = slot;
+        return slot;
     }
     
-    ctx.handleTextureLoaded = function(slot_num, doInterp)
+    ctx.handleTextureLoaded = function(slot_num)
     {
-        ctx.gl.bindTexture(ctx.gl.TEXTURE_2D, ctx.texSlots[slot_num]);
-        ctx.gl.texImage2D(ctx.gl.TEXTURE_2D, 0, ctx.gl.RGBA, ctx.gl.RGBA, ctx.gl.UNSIGNED_BYTE, ctx.imgSlots[slot_num]);
-        ctx.gl.texParameteri(ctx.gl.TEXTURE_2D, ctx.gl.TEXTURE_MAG_FILTER, doInterp ? ctx.gl.LINEAR : ctx.gl.NEAREST);
-        ctx.gl.texParameteri(ctx.gl.TEXTURE_2D, ctx.gl.TEXTURE_MIN_FILTER, doInterp ? ctx.gl.LINEAR_MIPMAP_LINEAR : ctx.gl.NEAREST);
-        if (doInterp) {
+        var slot = ctx.texSlots[slot_num];
+        ctx.gl.bindTexture(ctx.gl.TEXTURE_2D, slot.tex);
+        ctx.gl.texImage2D(ctx.gl.TEXTURE_2D, 0, ctx.gl.RGBA, ctx.gl.RGBA, ctx.gl.UNSIGNED_BYTE,
+                          slot.image);
+        ctx.gl.texParameteri(ctx.gl.TEXTURE_2D, ctx.gl.TEXTURE_MAG_FILTER,
+                             slot.doInterpol ? ctx.gl.LINEAR : ctx.gl.NEAREST);
+        ctx.gl.texParameteri(ctx.gl.TEXTURE_2D, ctx.gl.TEXTURE_MIN_FILTER,
+                             slot.doInterpol ? ctx.gl.LINEAR_MIPMAP_LINEAR : ctx.gl.NEAREST);
+        if (slot.doInterpol) {
             ctx.gl.generateMipmap(ctx.gl.TEXTURE_2D);
         }
         ctx.log("texture slot " + slot_num + " loaded");
+        slot.ready = true;
         //ctx.gl.bindTexture(ctx.gl.TEXTURE_2D, null);
+        ctx.render();
     }
 
     ctx.getPixels = function() {
