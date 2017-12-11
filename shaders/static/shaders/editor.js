@@ -55,6 +55,7 @@ function getEditorFromJson(data, ctx) {
     }
 
     ed.storeSource = function() {
+        // store source of current tab
         if (!ed.currentSourceId)
             return;
         for (var i in ed.data.sources) {
@@ -63,7 +64,7 @@ function getEditorFromJson(data, ctx) {
                 break;
             }
         }
-
+        // also store other editable values
         ed.data.name = $("#shader-name").text();
         ed.data.description = $("#shader-description").html();
     };
@@ -78,12 +79,6 @@ function getEditorFromJson(data, ctx) {
     };
 
     ed.parseLog = function(logtxt) {
-        // find current stage and it's fragment_pre's number-of-lines
-        /*var lines_pre = 0,
-            cur_stage = ed.currentStage();
-        if (cur_stage)
-            lines_pre = Tools.countLines(cur_stage.fragment_pre) + 1;
-        */
         var lines = logtxt.split("\n")
         for (var li in lines) {
             var line = lines[li];
@@ -99,18 +94,41 @@ function getEditorFromJson(data, ctx) {
     ed.checkIncludes = function() {
         var source = ed.getSource();
         var includes = Tools.getIncludes(source);
-        var hasUnknownIncludes = false;
+        var widgets = [];
         for (var i in includes) {
-            var srcs = ed.data.sources.filter(function(s) { return s.name==includes[i].name; });
-            if (!srcs.length) {
-                var widget = $('<div>create "' + includes[i].name + '"</div>');
-                widget.addClass("line-button");
-                widget.attr("data-create-include", includes[i].name);
-                ed.lineWidgets.push( ed.editor.addLineWidget(includes[i].line, widget[0]));
-                hasUnknownIncludes = true;
+            // see if local include and not exists - then create creation-button
+            if (!includes[i].shader) {
+                var srcs = ed.data.sources.filter(function(s) { return s.name==includes[i].name; });
+                if (!srcs.length) {
+                    var widget = $('<div>create "' + includes[i].name + '"</div>');
+                    widget.addClass("line-button");
+                    widget.attr("data-create-include", includes[i].name);
+                    widgets.push([includes[i].line, widget[0]]);
+                }
+            } else {
+                // get include from other shader
+                Tools.ajax(
+                    ed.data.urls.find_include,
+                    { shader: includes[i].shader, name: includes[i].name }
+                )
+                .done(function(data) {
+                    ed.storeSource();
+                    ed.data.sources.push(data.source);
+                    ed.update();
+                })
+                .fail(function(e) {
+                    ed.ctx.error(e);
+                });
             }
         }
-        // create new tab/source
+        if (widgets.length) {
+            ed.clearMarks();
+            for (var i in widgets) {
+                ed.lineWidgets.push( ed.editor.addLineWidget(widgets[i][0], widgets[i][1]) );
+            }
+        }
+
+        // create new include tab/source
         $('.line-button[data-create-include]').off("click").on("click", function(e) {
             var name = $(e.currentTarget).attr("data-create-include");
             ed.storeSource();
@@ -129,7 +147,7 @@ function getEditorFromJson(data, ctx) {
                 });
             }
         });
-        return hasUnknownIncludes;
+        return widgets.length > 0;
     }
 
     ed.markLine = function(line_num, char_num, text) {
@@ -177,12 +195,12 @@ function getEditorFromJson(data, ctx) {
 
         // tab click event
         $(".code-editor-tab").on("click", function(e) {
-            var $e = $(e.currentTarget);
-            $(".code-editor-tab").removeClass("code-editor-tab-active");
             ed.storeSource();
+            var $e = $(e.currentTarget);
             var source_id = $e.attr("data-id");
             srcs = ed.data.sources.filter(function(e){return e.id==source_id; });
             if (srcs.length==1) {
+                $(".code-editor-tab").removeClass("code-editor-tab-active");
                 ed.setSource(srcs[0]);
                 $e.addClass("code-editor-tab-active");
             }
@@ -203,6 +221,10 @@ function getEditorFromJson(data, ctx) {
                 mode: "clike-glsl",
                 theme: "xq-dark",
                 lineNumbers: true
+            });
+            ed.editor.on("keyHandled", function(e, name, event) {
+                if (name == "Enter")
+                    ed.checkIncludes();
             });
         }
 

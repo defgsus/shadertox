@@ -94,6 +94,16 @@ class DeserializationError(BaseException):
     pass
 
 
+def source_to_json(source):
+    return {
+        "id": source.source_id,
+        "type": source.source_type,
+        "name": source.name,
+        "source": source.source,
+        "stage": source.stage.index,
+    }
+
+
 def shader_to_json(shader):
     dic = {
         "id": shader.shader_id,
@@ -102,6 +112,7 @@ def shader_to_json(shader):
         "urls": {
             "save": reverse("shaders:shader_save", args=(shader.shader_id,)),
             "new_source_id": reverse("shaders:shader_new_source_id", args=(shader.shader_id,)),
+            "find_include": reverse("shaders:shader_find_include"),
         },
         "sources": [],
         "stages": [],
@@ -125,13 +136,7 @@ def shader_to_json(shader):
         })
 
         for source in ShaderSource.objects.filter(stage=stage):
-            dic["sources"].append({
-                "id": source.source_id,
-                "type": source.source_type,
-                "name": source.name,
-                "source": source.source,
-                "stage": stage.index,
-            })
+            dic["sources"].append(source_to_json(source))
 
     dic["stages"].sort(key=lambda stage: stage["index"])
     dic["sources"].sort(key=lambda source: source["stage"])
@@ -176,23 +181,24 @@ def json_to_shader(data, shader):
         existing_sources = {source.source_id: source
                             for source in ShaderSource.objects.filter(stage__shader=shader)}
         for source_data in data["sources"]:
-            if "id" in source_data:
-                if source_data["id"] in existing_sources:
-                    _update_model(
-                        existing_sources[source_data["id"]],
-                        name=source_data["name"],
-                        source=source_data["source"],
-                    )
-                else:
-                    if source_data["stage"] not in stage_idx_mapping:
-                        raise DeserializationError("Invalid stage index '%s'" % source_data["stage"])
-                    ShaderSource.objects.create(
-                        stage=stage_idx_mapping[source_data["stage"]],
-                        source_id=source_data["id"],
-                        source_type=source_data["type"],
-                        name=source_data["name"],
-                        source=source_data["source"],
-                    )
+            if not source_data.get("readonly"):
+                if "id" in source_data:
+                    if source_data["id"] in existing_sources:
+                        _update_model(
+                            existing_sources[source_data["id"]],
+                            name=source_data["name"],
+                            source=source_data["source"],
+                        )
+                    else:
+                        if source_data["stage"] not in stage_idx_mapping:
+                            raise DeserializationError("Invalid stage index '%s'" % source_data["stage"])
+                        ShaderSource.objects.create(
+                            stage=stage_idx_mapping[source_data["stage"]],
+                            source_id=source_data["id"],
+                            source_type=source_data["type"],
+                            name=source_data["name"],
+                            source=source_data["source"],
+                        )
 
 
 

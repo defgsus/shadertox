@@ -92,3 +92,27 @@ def shader_new_source_id(request, sid):
     #    raise Http404
     return JsonResponse({"id": get_new_source_id()})
 
+
+def shader_find_include(request):
+    shader_name = request.GET.get("shader", "")
+    source_name = request.GET.get("name", "")
+    if not shader_name or not source_name:
+        return JsonResponse({"error": _("invalid params")})
+
+    try:
+        shader = Shader.objects.get(shader_id=shader_name)
+    except Shader.DoesNotExist:
+        try:
+            shader = Shader.objects.get(name=shader_name)
+        except Shader.DoesNotExist:
+            return JsonResponse({"error": _("Shader '%s' not found") % shader_name})
+
+    try:
+        source = ShaderSource.objects.get(stage__shader=shader, name=source_name)
+    except ShaderSource.DoesNotExist:
+        return JsonResponse({"error": _("Source '%s' not found in shader '%s'") % (source_name, shader_name)})
+
+    ret = source_to_json(source)
+    ret["readonly"] = True
+    ret["name"] = "%s/%s" % (shader_name, source_name)
+    return JsonResponse({"source": ret})

@@ -12,6 +12,8 @@ urlpatterns = [
     url(r'^fork/(?P<sid>[A-Z0-9]+)/?$',         views.shader_fork_view,         name='shader_fork'),
     url(r'^newsourceid/(?P<sid>[A-Z0-9]+)/?$',  views.shader_new_source_id,     name='shader_new_source_id'),
 
+    url(r'^find_include/?$',                    views.shader_find_include,      name='shader_find_include'),
+
     url(r'^load/(?P<sid>[A-Z0-9]+)/?$',         views.shader_load_json,         name='shader_load'),
     url(r'^save/(?P<sid>[A-Z0-9]+)/?$',         views.shader_save_json,         name='shader_save'),
 ]
