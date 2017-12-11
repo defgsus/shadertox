@@ -20,6 +20,10 @@ function getEditorFromJson(data, ctx) {
     }
     ctx.edit = ed;
 
+    ed.getSource = function() {
+        return ed.editor.getValue();
+    }
+
     ed.setSource = function(source) {
         ed.currentSourceId = source.id;
         ed.editor.setValue(source.source);
@@ -47,7 +51,6 @@ function getEditorFromJson(data, ctx) {
         return null;
     }
 
-
     ed.storeSource = function() {
         if (!ed.currentSourceId)
             return;
@@ -65,26 +68,75 @@ function getEditorFromJson(data, ctx) {
     ed.compile = function() {
         ed.storeSource();
         ed.clearMarks();
+        if (ed.checkIncludes())
+            return;
         ed.ctx.initFromJson(ed.data);
         ed.ctx.render();
     };
 
     ed.parseLog = function(logtxt) {
         // find current stage and it's fragment_pre's number-of-lines
-        var lines_pre = 0,
+        /*var lines_pre = 0,
             cur_stage = ed.currentStage();
         if (cur_stage)
-            lines_pre = cur_stage.fragment_pre.match(/\n/g).length + 1;
-
+            lines_pre = Tools.countLines(cur_stage.fragment_pre) + 1;
+        */
         var lines = logtxt.split("\n")
         for (var li in lines) {
             var line = lines[li];
             if (line.startsWith("ERROR:")) {
                 var poss = line.substr(6).split(":");
-                var line_num = parseInt(poss[1]) - lines_pre;
+                var line_num = parseInt(poss[1]);
+                line_num = line_num || 0;
                 ed.markLine(line_num, 0, poss.slice(2).join(":").trim());
             }
         }
+    }
+
+    ed.checkIncludes = function() {
+        var source = ed.getSource();
+        var includes = Tools.getIncludes(source);
+        var hasUnknownIncludes = false;
+        for (var i in includes) {
+            var srcs = ed.data.sources.filter(function(s) { return s.name==includes[i].name; });
+            if (!srcs.length) {
+                var widget = $('<div>create "' + includes[i].name + '"</div>');
+                widget.addClass("line-button");
+                widget.attr("data-create-include", includes[i].name);
+                ed.lineWidgets.push( ed.editor.addLineWidget(includes[i].line, widget[0]));
+                hasUnknownIncludes = True;
+            }
+        }
+        $('.line-button[data-create-include]').off("click").on("click", function(e) {
+            var name = $(e.currentTarget).attr("data-create-include");
+            ed.storeSource();
+            var stage = ed.currentStage();
+            if (stage) {
+                ed.data.sources.push({
+                    id: "",
+                    name: name,
+                    type: "include",
+                    stage: stage.index,
+                    source: "/* " + name + " */"
+                });
+                ed.update();
+            }
+            /*
+            Tools.post(ed.data.urls.newInclude, {stage_id:ed.currentStage().id, name:name})
+            .done(function(data) {
+                if ("error" in data)
+                    ed.ctx.error(data.error);
+                else {
+                    ed.save();
+                    location.reload(true);
+                }
+            })
+            .fail(function() {
+                ed.ctx.error("Sorry, something went wrong");
+            });
+            */
+        });
+        return hasUnknownIncludes;
     }
 
     ed.markLine = function(line_num, char_num, text) {
@@ -105,18 +157,8 @@ function getEditorFromJson(data, ctx) {
 
     ed.save = function() {
         ed.storeSource();
-        $.ajax({
-            method: "POST",
-            url: ed.data.urls.save,
-            data: JSON.stringify(ed.data),
-            headers: {
-                "X-CSRFToken": $("[name=csrfmiddlewaretoken]").val()
-            },
-            contentType: 'application/json; charset=utf-8',
-            dataType: 'text'
-        })
-        .done(function(e) {
-            var data = JSON.parse(e);
+        Tools.post(ed.data.urls.save, ed.data)
+        .done(function(data) {
             if (data.error)
                 ed.ctx.error(data.error);
             else
@@ -127,53 +169,61 @@ function getEditorFromJson(data, ctx) {
         });
     }
 
-    // build TABs
-    data.sources.sort(function(l, r) { return l.stage < r.stage; })
-    for (var i in data.sources) {
-        var src = data.sources[i];
-        if (src.id) {
-            html += '<div class="code-editor-tab" data-id="'+ src.id +'">'
-                    + src.name + '</div>';
+    ed.update = function() {
+        // build TABs
+        data.sources.sort(function(l, r) { return l.stage < r.stage; })
+        var html = "";
+        for (var i in data.sources) {
+            var src = data.sources[i];
+            if (src.type != "vertex") {
+                html += '<div class="code-editor-tab" data-id="'+ src.id +'">'
+                        + src.name + '</div>';
+            }
         }
+        $("#code-editor-tab-header").html(html);
+
+        // tab click event
+        $(".code-editor-tab").on("click", function(e) {
+            var $e = $(e.currentTarget);
+            $(".code-editor-tab").removeClass("code-editor-tab-active");
+            ed.storeSource();
+            var source_id = $e.attr("data-id");
+            srcs = ed.data.sources.filter(function(e){return e.id==source_id; });
+            if (srcs.length==1) {
+                ed.setSource(srcs[0]);
+                $e.addClass("code-editor-tab-active");
+            }
+        });
+
+        // buttons
+
+        $("#compile-button").off("click").on("click", function() {
+            ed.compile();
+        });
+
+        $("#save-button").off("click").on("click", function() {
+            ed.save();
+        });
+
+        if (!ed.editor) {
+            ed.editor = CodeMirror.fromTextArea($("#code-mirror").get()[0], {
+                mode: "clike-glsl",
+                theme: "xq-dark",
+                lineNumbers: true
+            });
+        }
+
+        var cursrc = ed.findSource(data.stages.length-1, "main");
+        if (!cursrc)
+            cursrc = data.sources[0];
+
+        ed.currentSourceId = cursrc.id;
+        //$('.code-editor-tab[data-id="'+cursrc.id+'"]').click();
+        ed.setSource(cursrc);
+        $('.code-editor-tab[data-id="'+cursrc.id+'"]').addClass("code-editor-tab-active");
     }
-    $("#code-editor-tab-header").html(html);
 
-    // tab click event
-    $(".code-editor-tab").on("click", function(e) {
-        var $e = $(e.currentTarget);
-        $(".code-editor-tab").removeClass("code-editor-tab-active");
-
-        var source_id = $e.attr("data-id");
-        srcs = ed.data.sources.filter(function(e){return e.id==source_id; });
-        if (srcs.length==1) {
-            ed.setSource(srcs[0]);
-            $e.addClass("code-editor-tab-active");
-        }
-    });
-
-    // buttons
-
-    $("#compile-button").on("click", function() {
-        ed.compile();
-    });
-
-    $("#save-button").on("click", function() {
-        ed.save();
-    });
-
-    ed.editor = CodeMirror.fromTextArea($("#code-mirror").get()[0], {
-        mode: "clike-glsl",
-        theme: "xq-dark",
-        lineNumbers: true
-    });
-
-    var cursrc = ed.findSource(data.stages.length-1, "main");
-    if (!cursrc)
-        cursrc = data.sources[0];
-
-    ed.currentSourceId = cursrc.id;
-    $('.code-editor-tab[data-id="'+cursrc.id+'"]').click();
-    //ed.setCode(cursrc.source);
+    ed.update();
 
     return ed;
 }

@@ -29,6 +29,7 @@ JSON_LAYOUT = {
             "type": "vertex|fragment|include",
             "name": "freely chooseable",
             "stage": 0,
+            "source": "text",
         },
     ],
 }
@@ -100,6 +101,7 @@ def shader_to_json(shader):
         "description": shader.description,
         "urls": {
             "save": reverse("shaders:shader_save", args=(shader.shader_id,)),
+            "newInclude": reverse("shaders:shader_new_include", args=(shader.shader_id,)),
         },
         "sources": [],
         "stages": [],

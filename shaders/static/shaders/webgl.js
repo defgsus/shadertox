@@ -7,6 +7,7 @@ function getGlContext(canvas) {
     }
     ctx = {
         canvas: canvas,
+        isCompiled: false,
         texSlots: [null, null, null, null],
         tickId: 0,
         playing: false,
@@ -14,6 +15,7 @@ function getGlContext(canvas) {
         playStartTime: 0,
         framesPerSecond: 0,
         lastFrameTime: 0,
+        fragment_pre_lines: 0,
         log: function(x) { if (ctx.edit) ctx.edit.log(x); console.log(x); },
         error: function(x) { if (ctx.edit) ctx.edit.error(x); console.log("ERROR:", x); }
     };
@@ -38,7 +40,41 @@ function getGlContext(canvas) {
     ctx.gl.viewport(0, 0, ctx.gl.viewportWidth, ctx.gl.viewportHeight);
     ctx.gl.clear(ctx.gl.COLOR_BUFFER_BIT | ctx.gl.DEPTH_BUFFER_BIT);
 
+    ctx.resolveIncludes = function(source) {
+        if (!ctx.edit)
+            return source;
+        var resolvedNames = {};
+        while (true) {
+            var includes = Tools.getIncludes(source);
+            if (includes.length == 0)
+                break;
+            for (var i in includes) {
+                var isources = ctx.edit.data.sources.filter(function(s) { return s.name == includes[i].name; });
+                if (isources.length == 0) {
+                    ctx.error("include '" + includes[i].name + "' not found");
+                    return null;
+                } else if (isources.length > 1) {
+                    ctx.error("ambigious include '" + includes[i].name + "'");
+                    return null;
+                }
+                var isource = '/* include "' + isources[0].name + '" */\n' + isources[0].source;
+                if (!isource.endsWith("\n"))
+                    isource += "\n"
+                isource += "#line " + (includes[i].line - ctx.fragment_pre_lines);
+                var stmt_len = source.substr(includes[i].pos).search("\n");
+                source = source.substr(0, includes[i].pos) + isource + source.substr(includes[i].pos + stmt_len);
+            }
+        };
+        console.log(source);
+        return source;
+    }
+
     ctx.compileShader = function(shaderType, source) {
+
+        source = ctx.resolveIncludes(source);
+        if (!source)
+            return null;
+
         var shader = ctx.gl.createShader(shaderType);
         ctx.gl.shaderSource(shader, source);
 	    ctx.gl.compileShader(shader);
@@ -79,6 +115,8 @@ function getGlContext(canvas) {
 
     ctx.initShader = function(vertexSource, fragmentSource)
     {
+        ctx.isCompiled = false;
+
         // compile and link
         ctx.vertexShader = ctx.compileShader(ctx.gl.VERTEX_SHADER, vertexSource);
         if (!ctx.vertexShader)
@@ -124,9 +162,13 @@ function getGlContext(canvas) {
             [-1,-1,0, 1,-1,0, 1,1,0, -1,1,0],
             [0,1,2, 0,2,3]
         )
+
+        ctx.isCompiled = true;
     }
 
     ctx.render = function() {
+        if (!ctx.isCompiled)
+            return;
     	// bind buffers
 		ctx.gl.bindBuffer(ctx.gl.ARRAY_BUFFER, ctx.vb_pos);
 		ctx.gl.vertexAttribPointer(ctx.a_position, ctx.vb_pos.itemSize, ctx.gl.FLOAT, false, 0, 0);
@@ -172,7 +214,9 @@ function getGlContext(canvas) {
 
         if (!stage.fragment_pre.endsWith("\n"))
             stage.fragment_pre += "\n";
-	    var full_frag = stage.fragment_pre + frag_sources[0].source
+	    var full_frag = stage.fragment_pre;
+	    ctx.fragment_pre_lines = Tools.countLines(full_frag);
+	    full_frag += "#line 0\n" + frag_sources[0].source
         ctx.initShader(vertex_sources[0].source, full_frag);
 
         if (prev_playing)
