@@ -104,37 +104,27 @@ function getEditorFromJson(data, ctx) {
                 widget.addClass("line-button");
                 widget.attr("data-create-include", includes[i].name);
                 ed.lineWidgets.push( ed.editor.addLineWidget(includes[i].line, widget[0]));
-                hasUnknownIncludes = True;
+                hasUnknownIncludes = true;
             }
         }
+        // create new tab/source
         $('.line-button[data-create-include]').off("click").on("click", function(e) {
             var name = $(e.currentTarget).attr("data-create-include");
             ed.storeSource();
             var stage = ed.currentStage();
             if (stage) {
-                ed.data.sources.push({
-                    id: "",
-                    name: name,
-                    type: "include",
-                    stage: stage.index,
-                    source: "/* " + name + " */"
+                $.ajax(ed.data.urls.new_source_id)
+                .done(function(data) {
+                    ed.data.sources.push({
+                        id: data.id,
+                        name: name,
+                        type: "include",
+                        stage: stage.index,
+                        source: "/* " + name + " */"
+                    });
+                    ed.update();
                 });
-                ed.update();
             }
-            /*
-            Tools.post(ed.data.urls.newInclude, {stage_id:ed.currentStage().id, name:name})
-            .done(function(data) {
-                if ("error" in data)
-                    ed.ctx.error(data.error);
-                else {
-                    ed.save();
-                    location.reload(true);
-                }
-            })
-            .fail(function() {
-                ed.ctx.error("Sorry, something went wrong");
-            });
-            */
         });
         return hasUnknownIncludes;
     }
@@ -218,7 +208,6 @@ function getEditorFromJson(data, ctx) {
             cursrc = data.sources[0];
 
         ed.currentSourceId = cursrc.id;
-        //$('.code-editor-tab[data-id="'+cursrc.id+'"]').click();
         ed.setSource(cursrc);
         $('.code-editor-tab[data-id="'+cursrc.id+'"]').addClass("code-editor-tab-active");
     }

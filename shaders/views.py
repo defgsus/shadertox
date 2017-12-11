@@ -85,33 +85,10 @@ def shader_fork_view(request, sid):
     return HttpResponseRedirect(reverse("shaders:shader_edit", args=(new_shader.shader_id,)))
 
 
-def shader_new_include(request, sid):
-    try:
-        shader = Shader.objects.get(shader_id=sid)
-    except (Shader.DoesNotExist, ValueError):
-        return JsonResponse({"error": _("unknown shader id")})
+def shader_new_source_id(request, sid):
+    #try:
+    #    shader = Shader.objects.get(shader_id=sid)
+    #except (Shader.DoesNotExist, ValueError):
+    #    raise Http404
+    return JsonResponse({"id": get_new_source_id()})
 
-    data = json.load(request)
-
-    stage_id = data.get("stage_id", "")
-    try:
-        stage = ShaderStage.objects.get(shader=shader, stage_id=stage_id)
-    except ShaderStage.DoesNotExist:
-        return JsonResponse({"error": _("unknown stage id")})
-
-    source_name = data.get("name", "")
-    if not source_name:
-        return JsonResponse({"error": _("invalid name")})
-
-    if ShaderSource.objects.filter(stage_id=stage, name=source_name).exists():
-        return JsonResponse({"error": _("A source file with name '%s' already exists") % source_name})
-
-    ShaderSource.objects.create(
-        stage=stage,
-        source_type="include",
-        name=source_name,
-        source="/* %s */" % source_name
-    )
-
-    return JsonResponse({"message": "'%s' created" % source_name})
-    #return HttpResponseRedirect(reverse("shaders:shader_edit", args=(shader.shader_id,)))

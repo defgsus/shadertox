@@ -101,7 +101,7 @@ def shader_to_json(shader):
         "description": shader.description,
         "urls": {
             "save": reverse("shaders:shader_save", args=(shader.shader_id,)),
-            "newInclude": reverse("shaders:shader_new_include", args=(shader.shader_id,)),
+            "new_source_id": reverse("shaders:shader_new_source_id", args=(shader.shader_id,)),
         },
         "sources": [],
         "stages": [],
@@ -171,6 +171,8 @@ def json_to_shader(data, shader):
             else:
                 raise DeserializationError("Unknown stage id '%s'" % stage_data["id"])
 
+        stage_idx_mapping = {stage.index: stage
+                             for stage in ShaderStage.objects.filter(shader=shader)}
         existing_sources = {source.source_id: source
                             for source in ShaderSource.objects.filter(stage__shader=shader)}
         for source_data in data["sources"]:
@@ -182,8 +184,15 @@ def json_to_shader(data, shader):
                         source=source_data["source"],
                     )
                 else:
-                    raise DeserializationError("Unknown source id '%s'" % source_data["id"])
-
+                    if source_data["stage"] not in stage_idx_mapping:
+                        raise DeserializationError("Invalid stage index '%s'" % source_data["stage"])
+                    ShaderSource.objects.create(
+                        stage=stage_idx_mapping[source_data["stage"]],
+                        source_id=source_data["id"],
+                        source_type=source_data["type"],
+                        name=source_data["name"],
+                        source=source_data["source"],
+                    )
 
 
 

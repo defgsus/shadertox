@@ -40,32 +40,60 @@ function getGlContext(canvas) {
     ctx.gl.viewport(0, 0, ctx.gl.viewportWidth, ctx.gl.viewportHeight);
     ctx.gl.clear(ctx.gl.COLOR_BUFFER_BIT | ctx.gl.DEPTH_BUFFER_BIT);
 
+    function getInclude(source, source_name, include) {
+        console.log("INC", source_name, include.name);
+        if (source_name == include.name) {
+            ctx.error("self include '" + source_name + "'");
+            return null;
+        }
+        var isources = ctx.edit.data.sources.filter(function(s) { return s.name == include.name; });
+        if (isources.length == 0) {
+            ctx.error("include '" + include.name + "' not found");
+            return null;
+        } else if (isources.length > 1) {
+            ctx.error("ambigious include '" + include.name + "'");
+            return null;
+        }
+        if (!(source_name in ctx.resolvedNames))
+            ctx.resolvedNames[source_name] = [include.name];
+        /*else if (sour)
+            ctx.error("circular include '" + isources[0].name + "'");
+            return null;
+        }
+        resolvedNames[isources[0].name] = 1;
+        */
+        var isource = '/* include "' + isources[0].name + '" */\n'
+                    + isources[0].source
+                    + '/* end include "' + isources[0].name + '" */\n';
+        isource += "#line " + (include.line - ctx.fragment_pre_lines);
+        var stmt_len = source.substr(include.pos).search("\n");
+        source = source.substr(0, include.pos)
+               + isource
+               + source.substr(include.pos + stmt_len);
+
+        while (true) {
+            var subincludes = Tools.getIncludes(source);
+            if (subincludes.length == 0)
+                break;
+            var subinclude = subincludes[0];
+            source = getInclude(source, include.name, subinclude);
+            if (!source)
+                return null;
+        }
+        return source;
+    }
+
     ctx.resolveIncludes = function(source) {
         if (!ctx.edit)
             return source;
-        var resolvedNames = {};
+        ctx.resolvedNames = {};
         while (true) {
             var includes = Tools.getIncludes(source);
             if (includes.length == 0)
                 break;
-            for (var i in includes) {
-                var isources = ctx.edit.data.sources.filter(function(s) { return s.name == includes[i].name; });
-                if (isources.length == 0) {
-                    ctx.error("include '" + includes[i].name + "' not found");
-                    return null;
-                } else if (isources.length > 1) {
-                    ctx.error("ambigious include '" + includes[i].name + "'");
-                    return null;
-                }
-                var isource = '/* include "' + isources[0].name + '" */\n' + isources[0].source;
-                if (!isource.endsWith("\n"))
-                    isource += "\n"
-                isource += "#line " + (includes[i].line - ctx.fragment_pre_lines);
-                var stmt_len = source.substr(includes[i].pos).search("\n");
-                source = source.substr(0, includes[i].pos) + isource + source.substr(includes[i].pos + stmt_len);
-            }
+            source = getInclude(source, "main", includes[0]);
         };
-        console.log(source);
+        $("#debug").text(source);
         return source;
     }
 
