@@ -57,22 +57,39 @@ function getGlContext(canvas) {
         return false;
     }
 
-    function getInclude(source, source_name, include, org_source) {
-        console.log("INC", source_name, include.name);
+    function prepareIncludeLines(source, name, includes) {
+        var line_add = 0, pos_add = 0;
+        if (name == "main")
+            line_add -= ctx.fragment_pre_lines;
+        for (var i in includes) {
+            var line_stmt = "#line " + (includes[i].line + line_add) + "\n";
+            source = source.substr(0, includes[i].pos + includes[i].len + pos_add)
+                   + line_stmt
+                   + source.substr(includes[i].pos + includes[i].len + pos_add);
+            pos_add += line_stmt.length;
+        }
+        return source;
+    }
+
+    function getInclude(source, source_name, include, comes_from) {
+        //console.log("INC", source_name, include.name);
+        //console.log(comes_from);
         if (source_name == include.name) {
-            ctx.error("self include '" + source_name + "'");
+            ctx.error("multiple or circular reference: '" + source_name + "'");
             return null;
         }
-        if (!(org_source in ctx.resolvedNames)) {
-            ctx.resolvedNames[org_source] = {};
-            ctx.resolvedNames[org_source][include.name] = 1;
-        }
-        else {
-            if (include.name in ctx.resolvedNames[org_source]) {
-                ctx.error("circular reference: '" + source_name + "' includes '" + include.name + "'");
-                return null;
+        for (var i in comes_from) {
+            if (!(comes_from[i] in ctx.resolvedNames)) {
+                ctx.resolvedNames[comes_from[i]] = {};
+                ctx.resolvedNames[comes_from[i]][include.name] = 1;
             }
-            ctx.resolvedNames[org_source][include.name] = 1;
+            else {
+                if (include.name in ctx.resolvedNames[comes_from[i]]) {
+                    ctx.error("multiple or circular reference: '" + source_name + "' includes '" + include.name + "'");
+                    return null;
+                }
+                ctx.resolvedNames[comes_from[i]][include.name] = 1;
+            }
         }
 
         var isources = ctx.edit.data.sources.filter(function(s) { return s.name == include.name; });
@@ -85,19 +102,19 @@ function getGlContext(canvas) {
         }
 
         var isource = '/* include "' + isources[0].name + '" */\n'
-                    + isources[0].source
+                    + prepareIncludeLines(isources[0].source, isources[0].name,
+                                          Tools.getIncludes(isources[0].source))
                     + '/* end include "' + isources[0].name + '" */\n';
-        isource += "#line " + (include.line - ctx.fragment_pre_lines);
-        var stmt_len = source.substr(include.pos).search("\n");
         source = source.substr(0, include.pos)
                + isource
-               + source.substr(include.pos + stmt_len);
+               + source.substr(include.pos + include.len);
 
         while (true) {
             var subincludes = Tools.getIncludes(source);
             if (subincludes.length == 0)
                 break;
-            source = getInclude(source, include.name, subincludes[0], org_source);
+
+            source = getInclude(source, include.name, subincludes[0], comes_from.concat([include.name]));
             if (!source)
                 return null;
         }
@@ -109,12 +126,18 @@ function getGlContext(canvas) {
         if (!ctx.edit)
             return source;
         ctx.resolvedNames = {};
+
+        var includes = Tools.getIncludes(source);
+        if (includes.length)
+            source = prepareIncludeLines(source, "main", includes);
+        $("#debug").text("PRE\n" + source);
+
         while (true) {
             var includes = Tools.getIncludes(source);
             if (includes.length)
-                source = getInclude(source, "main", includes[0], "main")
+                source = getInclude(source, "main", includes[0], ["main"]);
             else
-                break
+                break;
         }
         $("#debug").text(source);
         return source;
@@ -122,9 +145,11 @@ function getGlContext(canvas) {
 
     ctx.compileShader = function(shaderType, source) {
 
-        source = ctx.resolveIncludes(source);
-        if (!source)
-            return null;
+        if (shaderType != ctx.gl.VERTEX_SHADER) {
+            source = ctx.resolveIncludes(source);
+            if (!source)
+                return null;
+        }
 
         var shader = ctx.gl.createShader(shaderType);
         ctx.gl.shaderSource(shader, source);

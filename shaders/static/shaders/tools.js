@@ -24,12 +24,13 @@ Tools.posToLineNumber = function(text, pos) {
 
 /* Returns list of dicts with (pos, line, name) */
 Tools.getIncludes = function(text) {
-    var re = /^ *#include *"(.+)"/mg;
+    var re = /^ *# *include *"(.+)" *\n/mg;
     var match;
     var includes = [];
     while ((match = re.exec(text)) != null) {
         includes.push({
             pos: match.index,
+            len: match[0].length,
             line: Tools.posToLineNumber(text, match.index),
             name: match[1]
         });
